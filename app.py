@@ -1,4 +1,5 @@
-# IMPORTAÇÕES
+
+#IMPORTAÇÕES NECESSÁRIAS
 import os
 import google.generativeai as genai
 from dotenv import load_dotenv
@@ -7,14 +8,12 @@ from bs4 import BeautifulSoup
 import sqlite3
 from rich import print
 
-# FUNÇÕES DO BANCO DE DADOS
-DB_FILE = 'duvidas_jp.db'  # Nome do nosso arquivo de banco de dados
+#FUNÇÕES DO BANCO DE DADOS
+DB_FILE = 'duvidas_jp.db'
 
 def inicializar_banco():
-    """Cria o banco de dados e a tabela 'duvidas' se eles não existirem."""
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    # Cria a tabela com colunas para id, pergunta e resposta
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS duvidas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26,9 +25,7 @@ def inicializar_banco():
     conn.close()
 
 def carregar_duvidas_do_banco():
-    """Lê todas as dúvidas do banco de dados e retorna como uma lista de dicionários."""
     conn = sqlite3.connect(DB_FILE)
-    # Retorna os resultados como dicionários para manter a compatibilidade com o resto do código
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT pergunta, resposta FROM duvidas")
@@ -36,16 +33,11 @@ def carregar_duvidas_do_banco():
     conn.close()
     return duvidas
 
-# FUNÇÃO DE WEB SCRAPING
+#FUNÇÃO DE WEB SCRAPING
 def raspar_e_salvar_no_banco(api_key):
-    """
-    Função que faz o scraping e salva os resultados DIRETAMENTE no banco de dados SQLite.
-    """
     url_alvo = "https://www.jovemprogramador.com.br/duvidas.php"
     url_api = f"http://api.scraperapi.com?api_key={api_key}&url={url_alvo}&render=true"
-
-    print("[cyan]Iniciando scraping do site Jovem Programador...[/cyan]")
-
+    print("[cyan]Iniciando dúvidas do site Jovem Programador...[/cyan]")
     try:
         resposta = requests.get(url_api, timeout=90)
         resposta.raise_for_status()
@@ -53,9 +45,8 @@ def raspar_e_salvar_no_banco(api_key):
 
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
-        # Limpa a tabela antes de inserir novos dados para evitar duplicatas
         cursor.execute("DELETE FROM duvidas")
-
+        
         count = 0
         accordions = soup.find_all('div', class_='accordion')
         for accordion in accordions:
@@ -66,79 +57,83 @@ def raspar_e_salvar_no_banco(api_key):
                 if pergunta_tag and resposta_tag:
                     pergunta = pergunta_tag.get_text(strip=True)
                     resposta = ' '.join(resposta_tag.get_text(strip=True, separator=' ').split())
-                    # Insere cada dúvida no banco de dados
                     cursor.execute("INSERT INTO duvidas (pergunta, resposta) VALUES (?, ?)", (pergunta, resposta))
                     count += 1
-
+        
         conn.commit()
         conn.close()
 
         if count > 0:
-            print(f"[bold green]SUCESSO![/] {count} dúvidas foram encontradas e salvas em '[bold cyan]{DB_FILE}[/bold cyan]'.")
+            print(f"[bold green]SUCESSO![/] {count} dúvidas foram encontradas e salvas")
         else:
             print("[yellow]AVISO: Nenhuma dúvida foi encontrada na página.[/yellow]")
 
     except requests.exceptions.RequestException as e:
-        print(f"[bold red]ERRO CRÍTICO na conexão ou scraping:[/bold red] {e}")
+        print(f"[bold red]ERRO CRÍTICO na busca das dúvidas[/bold red] {e}")
 
-# LÓGICA PRINCIPAL DO CHATBOT
+#LÓGICA PRINCIPAL DO CHATBOT
 load_dotenv()
 GEMINI_API_KEY = os.getenv('GOOGLE_GEMINI_API_KEY')
 SCRAPER_API_KEY = os.getenv('SCRAPER_API_KEY')
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel("gemini-1.5-flash-latest")
-my_chat = model.start_chat(history=[])
 
-# Inicializa o banco de dados
 inicializar_banco()
 
-# Tenta carregar as dúvidas do banco. Se estiver vazio, faz o scraping.
 duvidas_raspadas = carregar_duvidas_do_banco()
 if not duvidas_raspadas:
-    print(f"[yellow]Banco de dados '{DB_FILE}' está vazio. Executando o scraping pela primeira vez...[/yellow]")
+    print(f"[yellow]Dúvidas '{DB_FILE}' está vazio. Executando a busca das dúvidas...[/yellow]")
     raspar_e_salvar_no_banco(SCRAPER_API_KEY)
-    # Carrega os dados novamente após o scraping
     duvidas_raspadas = carregar_duvidas_do_banco()
 else:
     print("[purple]ASKBOT:[/] [bold cyan]Inicializando chat...[/bold cyan]")
 
-contexto_perguntas = ""
+contexto_completo = ""
 if duvidas_raspadas:
-    for i, duvida in enumerate(duvidas_raspadas):
-        contexto_perguntas += f"Índice {i}: {duvida['pergunta']}\n"
+    for duvida in duvidas_raspadas:
+        contexto_completo += f"PERGUNTA: {duvida['pergunta']}\nRESPOSTA: {duvida['resposta']}\n\n"
 else:
-    print(f"\n[purple]ASKBOT:[/] [yellow]AVISO: Não foi possível carregar as dúvidas do banco.[/yellow]")
+    print(f"\n[purple]ASKBOT:[/] [yellow]AVISO: A base de conhecimento está vazia.[/yellow]")
 
-traco = 60 * "-"
+traco = 80 * "-"
 askbot_prefixo = "[purple]ASKBOT:[/] "
 
 print(f"[bold green]{traco}[/bold green]")
-print(f"{askbot_prefixo}Faça uma pergunta ou digite '[bold]sair[/bold]' para encerrar.")
+print(f"{askbot_prefixo}Olá! Sou um assistente do Jovem Programador. Como posso ajudar?")
+print(f"{askbot_prefixo}Digite '[bold]sair[/bold]' para encerrar.")
 print(f"[bold green]{traco}[/bold green]")
 
+#LOOP DE CONVERSA COM LÓGICA REFINADA
 while True:
-    print("[bold cyan]Eu:[/] ", end="")
+    print("[bold cyan]Usuário:[/] ", end="")
     ask = input()
 
     if ask.lower() == 'sair':
-        print(f"{askbot_prefixo}Finalizando chat.... Até logo! :wave:")
+        print(f"{askbot_prefixo}Finalizando... Até logo! :wave:")
         break
 
-    resposta_encontrada = False
-    if duvidas_raspadas:
-        prompt_para_busca = f"Analise a pergunta do usuário e compare-a com a lista de perguntas frequentes abaixo. Se a pergunta do usuário for sobre um dos tópicos da lista, responda APENAS com o número do índice correspondente. Se não tiver relação, responda APENAS com -1.\n\nLista:\n{contexto_perguntas}\nPergunta do usuário: \"{ask}\"\n\nQual o índice?"
-        try:
-            resposta_busca = model.generate_content(prompt_para_busca)
-            indice_encontrado = int(resposta_busca.text.strip())
-            if 0 <= indice_encontrado < len(duvidas_raspadas):
-                print(f"\n{askbot_prefixo}", duvidas_raspadas[indice_encontrado]['resposta'])
-                resposta_encontrada = True
-        except (ValueError, IndexError):
-            resposta_encontrada = False
+    if not contexto_completo:
+        print(f"{askbot_prefixo}Desculpe, minha base de conhecimento está indisponível no momento.")
+        continue
 
-    if not resposta_encontrada:
-        print(f"\n{askbot_prefixo}[yellow]Não encontrei uma resposta específica. Buscando na base de conhecimento geral...[/yellow]")
-        response = my_chat.send_message(ask)
-        print(askbot_prefixo, response.text)
+    #PROMPT PARA IA
+    prompt_especialista = f"""
+    Você é um assistente prestativo e especializado no programa Jovem Programador.
+    Sua tarefa é responder a pergunta do usuário usando EXCLUSIVAMENTE as informações fornecidas no "CONTEXTO" abaixo. Não utilize nenhum conhecimento externo.
+
+    Se a resposta exata para a pergunta do usuário não puder ser encontrada, identifique a informação mais próxima ou relevante no contexto e formule uma resposta útil. 
+    Por exemplo, se o usuário perguntar a 'idade maxima' e o contexto só mencionar a 'idade mínima', você deve responder: "Não tem idade máxima para participar do programa jovem programador, mas a idade mínima é de 16 anos.".
+    Se nenhuma informação relevante for encontrada, responda educadamente que você não possui essa informação específica sobre o programa e peça para o usuário fazer uma pergunta relacionada ao programa jovem programador! 
+
+    CONTEXTO:
+    {contexto_completo}
+    
+    PERGUNTA DO USUÁRIO:
+    "{ask}"
+    """
+
+    print(f"\n{askbot_prefixo}[yellow]Buscando resposta...[/yellow]")
+    response = model.generate_content(prompt_especialista)
+    print(f"{askbot_prefixo}", response.text)
 
     print(f"[bold green]{traco}[/bold green]")
