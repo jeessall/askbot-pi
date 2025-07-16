@@ -1,4 +1,3 @@
-
 #IMPORTAÇÕES NECESSÁRIAS
 import os
 import google.generativeai as genai
@@ -8,9 +7,10 @@ from bs4 import BeautifulSoup
 import sqlite3
 from rich import print
 
-#FUNÇÕES DO BANCO DE DADOS
+#DANDO NOME AO ARQUIVO 
 DB_FILE = 'duvidas_jp.db'
 
+#FUNÇÕES DO BANCO DE DADOS
 def inicializar_banco():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
@@ -80,6 +80,7 @@ model = genai.GenerativeModel("gemini-1.5-flash-latest")
 
 inicializar_banco()
 
+#VALIDANDO DUVIDAS CARREGADAS DO BANCO DE dados
 duvidas_raspadas = carregar_duvidas_do_banco()
 if not duvidas_raspadas:
     print(f"[yellow]Dúvidas '{DB_FILE}' está vazio. Executando a busca das dúvidas...[/yellow]")
@@ -116,7 +117,7 @@ while True:
         print(f"{askbot_prefixo}Desculpe, minha base de conhecimento está indisponível no momento.")
         continue
 
-    #PROMPT PARA IA
+    #PROMPT PARA IA(INSTRUÇÕES)
     prompt_especialista = f"""
     Você é um assistente prestativo e especializado no programa Jovem Programador.
     Sua tarefa é responder a pergunta do usuário usando EXCLUSIVAMENTE as informações fornecidas no "CONTEXTO" abaixo. Não utilize nenhum conhecimento externo.
