@@ -89,10 +89,10 @@ if not duvidas_raspadas:
 else:
     print("[purple]ASKBOT:[/] [bold cyan]Inicializando chat...[/bold cyan]")
 
-contexto_completo = ""
+duvidas_disponiveis = ""
 if duvidas_raspadas:
     for duvida in duvidas_raspadas:
-        contexto_completo += f"PERGUNTA: {duvida['pergunta']}\nRESPOSTA: {duvida['resposta']}\n\n"
+        duvidas_disponiveis += f"PERGUNTA: {duvida['pergunta']}\nRESPOSTA: {duvida['resposta']}\n\n"
 else:
     print(f"\n[purple]ASKBOT:[/] [yellow]AVISO: A base de conhecimento está vazia.[/yellow]")
 
@@ -113,21 +113,21 @@ while True:
         print(f"{askbot_prefixo}Finalizando... Até logo! :wave:")
         break
 
-    if not contexto_completo:
+    if not duvidas_disponiveis:
         print(f"{askbot_prefixo}Desculpe, minha base de conhecimento está indisponível no momento.")
         continue
 
     #PROMPT PARA IA(INSTRUÇÕES)
     prompt_especialista = f"""
     Você é um assistente prestativo e especializado no programa Jovem Programador.
-    Sua tarefa é responder a pergunta do usuário usando EXCLUSIVAMENTE as informações fornecidas no "CONTEXTO" abaixo. Não utilize nenhum conhecimento externo.
+    Sua tarefa é responder a pergunta do usuário usando EXCLUSIVAMENTE as informações fornecidas nas "INFORMAÇÕES DISPONIVEIS" abaixo. Não utilize nenhum conhecimento externo.
 
-    Se a resposta exata para a pergunta do usuário não puder ser encontrada, identifique a informação mais próxima ou relevante no contexto e formule uma resposta útil. 
-    Por exemplo, se o usuário perguntar a 'idade maxima' e o contexto só mencionar a 'idade mínima', você deve responder: "Não tem idade máxima para participar do programa jovem programador, mas a idade mínima é de 16 anos.".
+    Se a resposta exata para a pergunta do usuário não puder ser encontrada, identifique a informação mais próxima ou relevante no INFORMAÇÕES DISPONIVEIS e formule uma resposta útil. 
+    Por exemplo, se o usuário perguntar a 'idade maxima' e o INFORMAÇÕES DISPONIVEIS só mencionar a 'idade mínima', você deve responder: "Não tem idade máxima para participar do programa jovem programador, mas a idade mínima é de 16 anos.".
     Se nenhuma informação relevante for encontrada, responda educadamente que você não possui essa informação específica sobre o programa e peça para o usuário fazer uma pergunta relacionada ao programa jovem programador! 
 
-    CONTEXTO:
-    {contexto_completo}
+    INFORMAÇÕES DISPONIVEIS:
+    {duvidas_disponiveis}
     
     PERGUNTA DO USUÁRIO:
     "{ask}"
