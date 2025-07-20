@@ -123,7 +123,7 @@ while True:
     Sua tarefa é responder a pergunta do usuário usando EXCLUSIVAMENTE as informações fornecidas nas "INFORMAÇÕES DISPONIVEIS" abaixo. Não utilize nenhum conhecimento externo.
 
     Se a resposta exata para a pergunta do usuário não puder ser encontrada, identifique a informação mais próxima ou relevante no INFORMAÇÕES DISPONIVEIS e formule uma resposta útil. 
-    Por exemplo, se o usuário perguntar a 'idade maxima' e o INFORMAÇÕES DISPONIVEIS só mencionar a 'idade mínima', você deve responder: "Não tem idade máxima para participar do programa jovem programador, mas a idade mínima é de 16 anos.".
+    Por exemplo, se o usuário perguntar a 'idade maxima' e o INFORMAÇÕES DISPONIVEIS só mencionar a 'idade mínima', você é obrigada a responder: "Não tem idade máxima para participar do programa jovem programador, mas a idade mínima é de 16 anos.".
     Se nenhuma informação relevante for encontrada, responda educadamente que você não possui essa informação específica sobre o programa e peça para o usuário fazer uma pergunta relacionada ao programa jovem programador! 
 
     INFORMAÇÕES DISPONIVEIS:

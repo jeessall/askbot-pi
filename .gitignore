@@ -1,0 +1,19 @@
+# Pasta do Ambiente Virtual
+# ESSA LINHA É A MAIS IMPORTANTE
+venv/
+
+# Arquivos de cache e compilados do Python
+__pycache__/
+*.pyc
+
+# Arquivo de variáveis de ambiente (segredos)
+.env
+
+# Arquivos de banco de dados SQLite
+# (Boa prática para não enviar o banco de dados de desenvolvimento)
+*.db
+*.sqlite3
+
+# Pastas de configuração de IDEs (opcional, mas recomendado)
+.vscode/
+.idea/
