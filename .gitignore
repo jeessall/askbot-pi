@@ -1,6 +1,6 @@
 # Pasta do Ambiente Virtual
 # ESSA LINHA É A MAIS IMPORTANTE
-venv/
+.venv/
 
 # Arquivos de cache e compilados do Python
 __pycache__/
