@@ -11,7 +11,7 @@ __pycache__/
 
 # Arquivos de banco de dados SQLite
 # (Boa prática para não enviar o banco de dados de desenvolvimento)
-.db
+duvidas_jp.db
 .sqlite3
 
 # Pastas de configuração de IDEs (opcional, mas recomendado)
