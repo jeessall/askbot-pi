@@ -2,18 +2,18 @@
 import os
 import sqlite3
 from rich import print
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from dotenv import load_dotenv
 
 import requests
 from bs4 import BeautifulSoup
 
-# SDK NOVO DO GEMINI
+# SDK DO GEMINI
 import google.generativeai as genai
 
 # --- CONFIGURAÇÃO DO FLASK ---
-app = Flask(__name__)
+app = Flask(__name__, template_folder="templates", static_folder="static")
 CORS(app)
 
 # --- CONFIGURAÇÃO DO BANCO ---
@@ -85,11 +85,9 @@ def raspar_e_salvar_no_banco(api_key):
         conn.close()
 
         if count > 0:
-            print(
-                f"[bold green]Sucesso! {count} dúvidas foram salvas no banco.[/bold green]"
-            )
+            print(f"[bold green]Sucesso! {count} dúvidas foram salvas no banco.[/bold green]")
         else:
-            print("[yellow]Aviso: nenhuma dúvida foi encontrada na página.[/yellow]")
+            print("[yellow]Aviso: nenhuma dúvida encontrada.[/yellow]")
 
     except Exception as e:
         print(f"[bold red]Erro ao raspar o site:[/bold red] {e}")
@@ -98,59 +96,43 @@ def raspar_e_salvar_no_banco(api_key):
     return True
 
 
-# --- CONFIG GERAL / GEMINI ---
+# --- CONFIG GEMINI ---
 load_dotenv()
 
-# aceita tanto GOOGLE_GEMINI_API_KEY quanto GEMINI_API_KEY
 API_KEY = os.getenv("GOOGLE_GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
 SCRAPER_API_KEY = os.getenv("SCRAPER_API_KEY")
 
 if not API_KEY:
-    print(
-        "[bold red]ERRO: Nenhuma chave de API do Gemini encontrada. "
-        "Defina GOOGLE_GEMINI_API_KEY ou GEMINI_API_KEY no .env[/bold red]"
-    )
+    print("[bold red]ERRO: Nenhuma chave de API encontrada![/bold red]")
 
 genai.configure(api_key=API_KEY)
 
-model = genai.GenerativeModel("gemini-1.5-flash")
-
-# Modelo novo, rápido e gratuito
 MODEL_NAME = "gemini-2.5-flash"
 
-# --- INICIALIZAÇÃO DO BANCO E BASE DE CONHECIMENTO ---
+# --- INICIALIZA BANCO ---
 inicializar_banco()
-
 DUVIDAS_DB = carregar_duvidas_do_banco()
 
 if not DUVIDAS_DB:
-    print("[yellow]Base de dúvidas vazia. Iniciando scraping...[/yellow]")
+    print("[yellow]Banco vazio, iniciando scraping...[/yellow]")
     if SCRAPER_API_KEY:
-        ok = raspar_e_salvar_no_banco(SCRAPER_API_KEY)
-        if ok:
+        if raspar_e_salvar_no_banco(SCRAPER_API_KEY):
             DUVIDAS_DB = carregar_duvidas_do_banco()
-        else:
-            print("[red]Falha ao atualizar a base via scraping.[/red]")
-    else:
-        print(
-            "[yellow]SCRAPER_API_KEY não definida. Não é possível raspar o site agora.[/yellow]"
-        )
 
-# monta texto plano com as dúvidas
 DUVIDAS_DISPONIVEIS = ""
-if DUVIDAS_DB:
-    for item in DUVIDAS_DB:
-        DUVIDAS_DISPONIVEIS += (
-            f"PERGUNTA: {item['pergunta']}\nRESPOSTA: {item['resposta']}\n\n"
-        )
-else:
-    print(
-        "[purple]ASKBOT:[/] [yellow]Aviso: a base de conhecimento está vazia. "
-        "O bot poderá responder apenas de forma limitada.[/yellow]"
+for item in DUVIDAS_DB:
+    DUVIDAS_DISPONIVEIS += (
+        f"PERGUNTA: {item['pergunta']}\nRESPOSTA: {item['resposta']}\n\n"
     )
 
 
-# --- ROTA PRINCIPAL DO CHAT ---
+# --- HOME SERVE O SITE ---
+@app.route("/")
+def home_page():
+    return render_template("index.html")
+
+
+# --- ROTA DO CHATBOT ---
 @app.route("/ask", methods=["POST"])
 def ask_chatbot():
     data = request.get_json() or {}
@@ -159,87 +141,28 @@ def ask_chatbot():
     if not pergunta:
         return jsonify({"answer": "Por favor, digite sua pergunta."}), 400
 
-    if not DUVIDAS_DISPONIVEIS:
-        return (
-            jsonify(
-                {
-                    "answer": (
-                        "No momento minha base de conhecimento está indisponível. "
-                        "Tente novamente mais tarde ou consulte diretamente o site oficial "
-                        "do programa Jovem Programador."
-                    )
-                }
-            ),
-            503,
-        )
-
     prompt = f"""
-    Você é o ASKBot, assistente virtual oficial e altamente especializado no programa "Jovem Programador".
+    Você é o ASKBot, assistente virtual oficial do programa "Jovem Programador".
+    Utilize APENAS as informações abaixo.
 
-    Sua função é responder exclusivamente com base nas informações abaixo,
-    sem inventar dados e sem usar conhecimento externo que não esteja explícito
-    neste texto.
-
-    REGRAS ESPECIAIS QUE VOCÊ DEVE SEGUIR:
-    - Se a pergunta envolver idade máxima, limite de idade ou dúvidas como
-      "tenho 26, posso participar?", responda literalmente:
-      "Não há idade máxima definida para participar do Jovem Programador, todos com a idade mínima de 16 anos ou maior podem participar do programa."
-    - Se a pergunta for sobre valor, mensalidade ou se o curso é pago,
-      e as informações indicarem que é gratuito, responda algo como:
-      "O programa Jovem Programador é gratuito e não possui mensalidade."
-    - Se a pergunta não estiver coberta de forma alguma pelas informações abaixo,
-      diga que não possui essa informação e sugira que a pessoa consulte o site
-      ou faça outra pergunta sobre o programa.
-
-    BASE DE CONHECIMENTO (dúvidas oficiais raspadas do site):
     {DUVIDAS_DISPONIVEIS}
 
-    PERGUNTA DO USUÁRIO:
-    "{pergunta}"
-
-    Responda de forma direta, clara e educada, em português do Brasil.
-    Não repita o enunciado "PERGUNTA DO USUÁRIO" na resposta.
+    Pergunta: {pergunta}
     """
 
     try:
-        response = genai.GenerativeModel(MODEL_NAME).generate_content(prompt)
-        answer = (response.text or "").strip()
-
-        if not answer:
-            answer = (
-                "Não consegui gerar uma resposta no momento. "
-                "Tente reformular a pergunta ou tente novamente daqui a pouco."
-            )
+        model = genai.GenerativeModel(MODEL_NAME)
+        response = model.generate_content(prompt)
+        answer = response.text.strip()
 
         return jsonify({"answer": answer})
 
     except Exception as e:
-        print(f"[bold red]ERRO API GEMINI (google-genai):[/bold red] {e}")
-        return (
-            jsonify(
-                {
-                    "answer": (
-                        "Desculpe, ocorreu um erro ao comunicar com a inteligência artificial. "
-                        "Tente novamente mais tarde."
-                    )
-                }
-            ),
-            500,
-        )
+        print("[bold red]ERRO GEMINI:[/bold red]", e)
+        return jsonify({"answer": "Erro ao processar sua pergunta."}), 500
 
 
-# --- ROTA INICIAL GET "/" ---
-@app.route("/", methods=["GET"])
-def home():
-    return jsonify({
-        "status": "online",
-        "message": "ASKBot API funcionando! Utilize POST /ask para enviar perguntas."
-    })
-
-
-# --- EXECUÇÃO ---
+# --- EXECUÇÃO LOCAL ---
 if __name__ == "__main__":
-    print(
-        "[cyan]ASKBOT: Servidor Flask rodando na porta 5000 (Gemini 2.5 Flash)...[/cyan]"
-    )
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    print("[cyan]Rodando AskBot na porta 5000...[/cyan]")
+    app.run(host="0.0.0.0", port=5000)
