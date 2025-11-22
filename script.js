@@ -22,7 +22,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const suggestionBtns = document.querySelectorAll(".suggestion-btn");
     const micBtn = document.getElementById("mic-btn");
 
-    const API_URL = "http://127.0.0.1:5000/ask";
+    /* =====================================================
+       API URL — (AJUSTADO PARA PRODUÇÃO)
+       ===================================================== */
+    const API_URL = "/ask";
 
     /* =====================================================
        3) DALTÔNICO
