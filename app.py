@@ -10,7 +10,7 @@ import requests
 from bs4 import BeautifulSoup
 
 # SDK NOVO DO GEMINI
-from google import genai
+import google.generativeai as genai
 
 # --- CONFIGURAÇÃO DO FLASK ---
 app = Flask(__name__)
