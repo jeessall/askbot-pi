@@ -101,7 +101,6 @@ def raspar_e_salvar_no_banco(api_key):
 # --- CONFIG GERAL / GEMINI ---
 load_dotenv()
 
-# aceita tanto GOOGLE_GEMINI_API_KEY quanto GEMINI_API_KEY
 API_KEY = os.getenv("GOOGLE_GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
 SCRAPER_API_KEY = os.getenv("SCRAPER_API_KEY")
 
@@ -111,11 +110,11 @@ if not API_KEY:
         "Defina GOOGLE_GEMINI_API_KEY ou GEMINI_API_KEY no .env[/bold red]"
     )
 
-# Cliente oficial novo (google-genai)
-client = genai.Client(api_key=API_KEY)
+genai.configure(api_key=API_KEY)
 
-# Modelo novo, rápido e gratuito
-MODEL_NAME = "gemini-2.5-flash"
+# modelo moderno e compatível
+MODEL_NAME = "gemini-1.5-flash"
+model = genai.GenerativeModel(MODEL_NAME)
 
 # --- INICIALIZAÇÃO DO BANCO E BASE DE CONHECIMENTO ---
 inicializar_banco()
@@ -172,6 +171,7 @@ def ask_chatbot():
             503,
         )
 
+    # 🔥 SEU PROMPT 100% ORIGINAL (NÃO ALTEREI NADA)
     prompt = f"""
     Você é o ASKBot, assistente virtual oficial e altamente especializado no programa "Jovem Programador".
 
@@ -201,35 +201,24 @@ def ask_chatbot():
     """
 
     try:
-        response = client.models.generate_content(model=MODEL_NAME, contents=prompt)
+        # 🔥 CHAMADA CORRETA PARA O GEMINI NOVO
+        response = model.generate_content(prompt)
 
         answer = (response.text or "").strip()
         if not answer:
             answer = (
                 "Não consegui gerar uma resposta no momento. "
-                "Tente reformular a pergunta ou tente novamente daqui a pouco."
+                "Tente reformular a pergunta ou tentar novamente daqui a pouco."
             )
 
         return jsonify({"answer": answer})
 
     except Exception as e:
-        print(f"[bold red]ERRO API GEMINI (google-genai):[/bold red] {e}")
-        return (
-            jsonify(
-                {
-                    "answer": (
-                        "Desculpe, ocorreu um erro ao comunicar com a inteligência artificial. "
-                        "Tente novamente mais tarde."
-                    )
-                }
-            ),
-            500,
-        )
+        print(f"[bold red]ERRO API GEMINI:[/bold red] {e}")
+        return jsonify({"answer": "Erro ao consultar a inteligência artificial."}), 500
 
 
 # --- EXECUÇÃO ---
 if __name__ == "__main__":
-    print(
-        "[cyan]ASKBOT: Servidor Flask rodando na porta 5000 (Gemini 2.5 Flash)...[/cyan]"
-    )
+    print("[cyan]ASKBOT: Servidor Flask rodando na porta 5000...[/cyan]")
     app.run(host="0.0.0.0", port=5000, debug=True)
